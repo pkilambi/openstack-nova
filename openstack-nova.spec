@@ -40,7 +40,7 @@ Patch0001: 0001-Ensure-we-don-t-access-the-net-when-building-docs.patch
 
 BuildArch:        noarch
 BuildRequires:    intltool
-BuildRequires:    python-sphinx
+BuildRequires:    python-sphinx10
 BuildRequires:    python-setuptools
 BuildRequires:    python-netaddr
 BuildRequires:    openstack-utils
@@ -391,7 +391,7 @@ export PYTHONPATH="$( pwd ):$PYTHONPATH"
 pushd doc
 
 %if 0%{?with_doc}
-SPHINX_DEBUG=1 sphinx-build -b html source build/html
+SPHINX_DEBUG=1 sphinx-1.0-build -b html source build/html
 # Fix hidden-file-or-dir warnings
 rm -fr build/html/.doctrees build/html/.buildinfo
 %endif
@@ -399,7 +399,7 @@ rm -fr build/html/.doctrees build/html/.buildinfo
 # Create dir link to avoid a sphinx-build exception
 mkdir -p build/man/.doctrees/
 ln -s .  build/man/.doctrees/man
-SPHINX_DEBUG=1 sphinx-build -b man -c source source/man build/man
+SPHINX_DEBUG=1 sphinx-1.0-build -b man -c source source/man build/man
 mkdir -p %{buildroot}%{_mandir}/man1
 install -p -D -m 644 build/man/*.1 %{buildroot}%{_mandir}/man1/
 
