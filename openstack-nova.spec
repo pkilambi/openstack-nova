@@ -2,7 +2,7 @@
 
 Name:             openstack-nova
 Version:          2013.1
-Release:          0.7.g3%{?dist}
+Release:          0.6.g3%{?dist}
 Summary:          OpenStack Compute (nova)
 
 Group:            Applications/System
@@ -11,32 +11,46 @@ URL:              http://openstack.org/projects/compute/
 Source0:          https://launchpad.net/nova/grizzly/grizzly-3/+download/nova-2013.1.g3.tar.gz
 
 Source1:          nova.conf
-Source3:          nova-tgt.conf
 Source6:          nova.logrotate
 
-Source10:         openstack-nova-api.service
-Source11:         openstack-nova-cert.service
-Source12:         openstack-nova-compute.service
-Source13:         openstack-nova-network.service
-Source14:         openstack-nova-objectstore.service
-Source15:         openstack-nova-scheduler.service
-Source18:         openstack-nova-xvpvncproxy.service
-Source19:         openstack-nova-console.service
-Source20:         openstack-nova-consoleauth.service
-Source25:         openstack-nova-metadata-api.service
-Source26:         openstack-nova-conductor.service
-Source27:         openstack-nova-cells.service
-Source28:         openstack-nova-spicehtml5proxy.service
+Source10:         openstack-nova-api.init
+Source100:        openstack-nova-api.upstart
+Source11:         openstack-nova-cert.init
+Source110:        openstack-nova-cert.upstart
+Source12:         openstack-nova-compute.init
+Source120:        openstack-nova-compute.upstart
+Source13:         openstack-nova-network.init
+Source130:        openstack-nova-network.upstart
+Source14:         openstack-nova-objectstore.init
+Source140:        openstack-nova-objectstore.upstart
+Source15:         openstack-nova-scheduler.init
+Source150:        openstack-nova-scheduler.upstart
+Source16:         openstack-nova-conductor.init
+Source160:        openstack-nova-conductor.upstart
+Source18:         openstack-nova-xvpvncproxy.init
+Source180:        openstack-nova-xvpvncproxy.upstart
+Source19:         openstack-nova-console.init
+Source190:        openstack-nova-console.upstart
+Source24:         openstack-nova-consoleauth.init
+Source240:        openstack-nova-consoleauth.upstart
+Source25:         openstack-nova-metadata-api.init
+Source250:        openstack-nova-metadata-api.upstart
+Source26:         openstack-nova-cells.init
+Source260:        openstack-nova-cells.upstart
+Source27:         openstack-nova-spicehtml5proxy.init
+Source270:        openstack-nova-spicehtml5proxy.upstart
 
+Source20:         nova-sudoers
 Source21:         nova-polkit.pkla
-Source23:         nova-polkit.rules
 Source22:         nova-ifc-template
-Source24:         nova-sudoers
 
 #
 # patches_base=2013.1.g3
 #
 Patch0001: 0001-Ensure-we-don-t-access-the-net-when-building-docs.patch
+
+# This is EPEL specific and not upstream
+Patch100:         openstack-nova-newdeps.patch
 
 BuildArch:        noarch
 BuildRequires:    intltool
@@ -44,6 +58,11 @@ BuildRequires:    python-sphinx10
 BuildRequires:    python-setuptools
 BuildRequires:    python-netaddr
 BuildRequires:    openstack-utils
+# These are required to build due to the requirements check added
+BuildRequires:    python-paste-deploy1.5
+BuildRequires:    python-routes1.12
+BuildRequires:    python-sqlalchemy0.7
+BuildRequires:    python-webob1.0
 
 Requires:         openstack-nova-compute = %{version}-%{release}
 Requires:         openstack-nova-cert = %{version}-%{release}
@@ -53,7 +72,7 @@ Requires:         openstack-nova-network = %{version}-%{release}
 Requires:         openstack-nova-objectstore = %{version}-%{release}
 Requires:         openstack-nova-conductor = %{version}-%{release}
 Requires:         openstack-nova-console = %{version}-%{release}
-Requires:         openstack-nova-cells = %{version}-%{release}
+Requires:         openstack-nova-console = %{version}-%{release}
 
 
 %description
@@ -72,10 +91,12 @@ Group:            Applications/System
 
 Requires:         python-nova = %{version}-%{release}
 
-Requires(post):   systemd-units
-Requires(preun):  systemd-units
-Requires(postun): systemd-units
+Requires(post):   chkconfig
+Requires(postun): initscripts
+Requires(preun):  chkconfig
 Requires(pre):    shadow-utils
+
+Requires:         python-setuptools
 
 %description common
 OpenStack Compute (codename Nova) is open source software designed to
@@ -100,6 +121,11 @@ Requires:         curl
 Requires:         iscsi-initiator-utils
 Requires:         iptables iptables-ipv6
 Requires:         vconfig
+# tunctl is needed where `ip tuntap` is not available
+Requires:         tunctl
+Requires:         libguestfs-mount >= 1.7.17
+# The fuse dependency should be added to libguestfs-mount
+Requires:         fuse
 Requires:         python-libguestfs
 Requires:         libvirt >= 0.9.6
 Requires:         libvirt-python
@@ -131,7 +157,10 @@ Requires:         vconfig
 Requires:         radvd
 Requires:         bridge-utils
 Requires:         dnsmasq
-Requires:         dnsmasq-utils
+#TODO: Enable when available in RHEL 6.3
+#Requires:         dnsmasq-utils
+# tunctl is needed where `ip tuntap` is not available
+Requires:         tunctl
 
 %description network
 OpenStack Compute (codename Nova) is open source software designed to
@@ -310,12 +339,12 @@ Requires:         python-stevedore
 
 Requires:         python-memcached
 
-Requires:         python-sqlalchemy
+Requires:         python-sqlalchemy0.7
 Requires:         python-migrate
 
-Requires:         python-paste-deploy
-Requires:         python-routes
-Requires:         python-webob
+Requires:         python-paste-deploy1.5
+Requires:         python-routes1.12
+Requires:         python-webob1.0
 
 Requires:         python-glanceclient >= 1:0
 Requires:         python-quantumclient >= 1:2
@@ -337,15 +366,11 @@ Group:            Documentation
 
 Requires:         %{name} = %{version}-%{release}
 
-BuildRequires:    systemd-units
 BuildRequires:    graphviz
 
 # Required to build module documents
 BuildRequires:    python-boto
 BuildRequires:    python-eventlet
-BuildRequires:    python-routes
-BuildRequires:    python-sqlalchemy
-BuildRequires:    python-webob
 # while not strictly required, quiets the build down when building docs.
 BuildRequires:    python-migrate, python-iso8601
 
@@ -361,6 +386,9 @@ This package contains documentation files for nova.
 %setup -q -n nova-%{version}.g3
 
 %patch0001 -p1
+
+# Apply EPEL patch
+%patch100 -p1
 
 find . \( -name .gitignore -o -name .placeholder \) -delete
 
@@ -408,6 +436,7 @@ popd
 # Setup directories
 install -d -m 755 %{buildroot}%{_sharedstatedir}/nova
 install -d -m 755 %{buildroot}%{_sharedstatedir}/nova/buckets
+install -d -m 755 %{buildroot}%{_sharedstatedir}/nova/images
 install -d -m 755 %{buildroot}%{_sharedstatedir}/nova/instances
 install -d -m 755 %{buildroot}%{_sharedstatedir}/nova/keys
 install -d -m 755 %{buildroot}%{_sharedstatedir}/nova/networks
@@ -427,7 +456,6 @@ touch %{buildroot}%{_sharedstatedir}/nova/CA/private/cakey.pem
 install -d -m 755 %{buildroot}%{_sysconfdir}/nova
 install -p -D -m 640 %{SOURCE1} %{buildroot}%{_sysconfdir}/nova/nova.conf
 install -d -m 755 %{buildroot}%{_sysconfdir}/nova/volumes
-install -p -D -m 644 %{SOURCE3} %{buildroot}%{_sysconfdir}/tgt/conf.d/nova.conf
 install -p -D -m 640 etc/nova/rootwrap.conf %{buildroot}%{_sysconfdir}/nova/rootwrap.conf
 install -p -D -m 640 etc/nova/api-paste.ini %{buildroot}%{_sysconfdir}/nova/api-paste.ini
 install -p -D -m 640 etc/nova/policy.json %{buildroot}%{_sysconfdir}/nova/policy.json
@@ -435,28 +463,28 @@ install -p -D -m 640 etc/nova/policy.json %{buildroot}%{_sysconfdir}/nova/policy
 # Install version info file
 cat > %{buildroot}%{_sysconfdir}/nova/release <<EOF
 [Nova]
-vendor = Fedora Project
+vendor = Red Hat Inc.
 product = OpenStack Nova
 package = %{release}
 EOF
 
 # Install initscripts for Nova services
-install -p -D -m 755 %{SOURCE10} %{buildroot}%{_unitdir}/openstack-nova-api.service
-install -p -D -m 755 %{SOURCE11} %{buildroot}%{_unitdir}/openstack-nova-cert.service
-install -p -D -m 755 %{SOURCE12} %{buildroot}%{_unitdir}/openstack-nova-compute.service
-install -p -D -m 755 %{SOURCE13} %{buildroot}%{_unitdir}/openstack-nova-network.service
-install -p -D -m 755 %{SOURCE14} %{buildroot}%{_unitdir}/openstack-nova-objectstore.service
-install -p -D -m 755 %{SOURCE15} %{buildroot}%{_unitdir}/openstack-nova-scheduler.service
-install -p -D -m 755 %{SOURCE18} %{buildroot}%{_unitdir}/openstack-nova-xvpvncproxy.service
-install -p -D -m 755 %{SOURCE19} %{buildroot}%{_unitdir}/openstack-nova-console.service
-install -p -D -m 755 %{SOURCE20} %{buildroot}%{_unitdir}/openstack-nova-consoleauth.service
-install -p -D -m 755 %{SOURCE25} %{buildroot}%{_unitdir}/openstack-nova-metadata-api.service
-install -p -D -m 755 %{SOURCE26} %{buildroot}%{_unitdir}/openstack-nova-conductor.service
-install -p -D -m 755 %{SOURCE27} %{buildroot}%{_unitdir}/openstack-nova-cells.service
-install -p -D -m 755 %{SOURCE28} %{buildroot}%{_unitdir}/openstack-nova-spicehtml5proxy.service
+install -p -D -m 755 %{SOURCE10} %{buildroot}%{_initrddir}/openstack-nova-api
+install -p -D -m 755 %{SOURCE11} %{buildroot}%{_initrddir}/openstack-nova-cert
+install -p -D -m 755 %{SOURCE12} %{buildroot}%{_initrddir}/openstack-nova-compute
+install -p -D -m 755 %{SOURCE13} %{buildroot}%{_initrddir}/openstack-nova-network
+install -p -D -m 755 %{SOURCE14} %{buildroot}%{_initrddir}/openstack-nova-objectstore
+install -p -D -m 755 %{SOURCE15} %{buildroot}%{_initrddir}/openstack-nova-scheduler
+install -p -D -m 755 %{SOURCE16} %{buildroot}%{_initrddir}/openstack-nova-conductor
+install -p -D -m 755 %{SOURCE18} %{buildroot}%{_initrddir}/openstack-nova-xvpvncproxy
+install -p -D -m 755 %{SOURCE19} %{buildroot}%{_initrddir}/openstack-nova-console
+install -p -D -m 755 %{SOURCE24} %{buildroot}%{_initrddir}/openstack-nova-consoleauth
+install -p -D -m 755 %{SOURCE25} %{buildroot}%{_initrddir}/openstack-nova-metadata-api
+install -p -D -m 755 %{SOURCE26} %{buildroot}%{_initrddir}/openstack-nova-cells
+install -p -D -m 755 %{SOURCE27} %{buildroot}%{_initrddir}/openstack-nova-spicehtml5proxy
 
 # Install sudoers
-install -p -D -m 440 %{SOURCE24} %{buildroot}%{_sysconfdir}/sudoers.d/nova
+install -p -D -m 440 %{SOURCE20} %{buildroot}%{_sysconfdir}/sudoers.d/nova
 
 # Install logrotate
 install -p -D -m 644 %{SOURCE6} %{buildroot}%{_sysconfdir}/logrotate.d/openstack-nova
@@ -468,16 +496,27 @@ install -d -m 755 %{buildroot}%{_localstatedir}/run/nova
 install -p -D -m 644 nova/cloudpipe/client.ovpn.template %{buildroot}%{_datarootdir}/nova/client.ovpn.template
 install -p -D -m 644 %{SOURCE22} %{buildroot}%{_datarootdir}/nova/interfaces.template
 
+# Install upstart jobs examples
+install -p -m 644 %{SOURCE100} %{buildroot}%{_datadir}/nova/
+install -p -m 644 %{SOURCE110} %{buildroot}%{_datadir}/nova/
+install -p -m 644 %{SOURCE120} %{buildroot}%{_datadir}/nova/
+install -p -m 644 %{SOURCE130} %{buildroot}%{_datadir}/nova/
+install -p -m 644 %{SOURCE140} %{buildroot}%{_datadir}/nova/
+install -p -m 644 %{SOURCE150} %{buildroot}%{_datadir}/nova/
+install -p -m 644 %{SOURCE160} %{buildroot}%{_datadir}/nova/
+install -p -m 644 %{SOURCE180} %{buildroot}%{_datadir}/nova/
+install -p -m 644 %{SOURCE190} %{buildroot}%{_datadir}/nova/
+install -p -m 644 %{SOURCE240} %{buildroot}%{_datadir}/nova/
+install -p -m 644 %{SOURCE250} %{buildroot}%{_datadir}/nova/
+install -p -m 644 %{SOURCE260} %{buildroot}%{_datadir}/nova/
+install -p -m 644 %{SOURCE270} %{buildroot}%{_datadir}/nova/
+
 # Install rootwrap files in /usr/share/nova/rootwrap
 mkdir -p %{buildroot}%{_datarootdir}/nova/rootwrap/
 install -p -D -m 644 etc/nova/rootwrap.d/* %{buildroot}%{_datarootdir}/nova/rootwrap/
 
-# Older format. Remove when we no longer want to support Fedora 17 with master branch packages
 install -d -m 755 %{buildroot}%{_sysconfdir}/polkit-1/localauthority/50-local.d
 install -p -D -m 644 %{SOURCE21} %{buildroot}%{_sysconfdir}/polkit-1/localauthority/50-local.d/50-nova.pkla
-# Newer format since Fedora 18
-install -d -m 755 %{buildroot}%{_sysconfdir}/polkit-1/rules.d
-install -p -D -m 644 %{SOURCE23} %{buildroot}%{_sysconfdir}/polkit-1/rules.d/50-nova.rules
 
 # Remove unneeded in production stuff
 rm -f %{buildroot}%{_bindir}/nova-debug
@@ -501,186 +540,153 @@ usermod -a -G qemu nova
 exit 0
 
 %post compute
-if [ $1 -eq 1 ] ; then
-    # Initial installation
-    /bin/systemctl daemon-reload >/dev/null 2>&1 || :
-fi
+/sbin/chkconfig --add openstack-nova-compute
 %post network
-if [ $1 -eq 1 ] ; then
-    # Initial installation
-    /bin/systemctl daemon-reload >/dev/null 2>&1 || :
-fi
-%post scheduler
-if [ $1 -eq 1 ] ; then
-    # Initial installation
-    /bin/systemctl daemon-reload >/dev/null 2>&1 || :
-fi
-%post cert
-if [ $1 -eq 1 ] ; then
-    # Initial installation
-    /bin/systemctl daemon-reload >/dev/null 2>&1 || :
-fi
-%post api
-if [ $1 -eq 1 ] ; then
-    # Initial installation
-    /bin/systemctl daemon-reload >/dev/null 2>&1 || :
-fi
+/sbin/chkconfig --add openstack-nova-network
 %post conductor
-if [ $1 -eq 1 ] ; then
-    # Initial installation
-    /bin/systemctl daemon-reload >/dev/null 2>&1 || :
-fi
+/sbin/chkconfig --add openstack-nova-conductor
+%post scheduler
+/sbin/chkconfig --add openstack-nova-scheduler
+%post cert
+/sbin/chkconfig --add openstack-nova-cert
+%post api
+for svc in api metadata-api; do
+    /sbin/chkconfig --add openstack-nova-$svc
+done
 %post objectstore
-if [ $1 -eq 1 ] ; then
-    # Initial installation
-    /bin/systemctl daemon-reload >/dev/null 2>&1 || :
-fi
+/sbin/chkconfig --add openstack-nova-objectstore
 %post console
-if [ $1 -eq 1 ] ; then
-    # Initial installation
-    /bin/systemctl daemon-reload >/dev/null 2>&1 || :
-fi
-
+for svc in console consoleauth xvpvncproxy; do
+    /sbin/chkconfig --add openstack-nova-$svc
+done
 %post cells
-if [ $1 -eq 1 ] ; then
-    # Initial installation
-    /bin/systemctl daemon-reload >/dev/null 2>&1 || :
-fi
+/sbin/chkconfig --add openstack-nova-cells
 
 %preun compute
 if [ $1 -eq 0 ] ; then
     for svc in compute; do
-        /bin/systemctl --no-reload disable openstack-nova-${svc}.service > /dev/null 2>&1 || :
-        /bin/systemctl stop openstack-nova-${svc}.service > /dev/null 2>&1 || :
+        /sbin/service openstack-nova-${svc} stop >/dev/null 2>&1
+        /sbin/chkconfig --del openstack-nova-${svc}
     done
 fi
 %preun network
 if [ $1 -eq 0 ] ; then
     for svc in network; do
-        /bin/systemctl --no-reload disable openstack-nova-${svc}.service > /dev/null 2>&1 || :
-        /bin/systemctl stop openstack-nova-${svc}.service > /dev/null 2>&1 || :
+        /sbin/service openstack-nova-${svc} stop >/dev/null 2>&1
+        /sbin/chkconfig --del openstack-nova-${svc}
     done
 fi
 %preun scheduler
 if [ $1 -eq 0 ] ; then
     for svc in scheduler; do
-        /bin/systemctl --no-reload disable openstack-nova-${svc}.service > /dev/null 2>&1 || :
-        /bin/systemctl stop openstack-nova-${svc}.service > /dev/null 2>&1 || :
+        /sbin/service openstack-nova-${svc} stop >/dev/null 2>&1
+        /sbin/chkconfig --del openstack-nova-${svc}
     done
 fi
 %preun cert
 if [ $1 -eq 0 ] ; then
     for svc in cert; do
-        /bin/systemctl --no-reload disable openstack-nova-${svc}.service > /dev/null 2>&1 || :
-        /bin/systemctl stop openstack-nova-${svc}.service > /dev/null 2>&1 || :
+        /sbin/service openstack-nova-${svc} stop >/dev/null 2>&1
+        /sbin/chkconfig --del openstack-nova-${svc}
     done
 fi
 %preun api
 if [ $1 -eq 0 ] ; then
     for svc in api metadata-api; do
-        /bin/systemctl --no-reload disable openstack-nova-${svc}.service > /dev/null 2>&1 || :
-        /bin/systemctl stop openstack-nova-${svc}.service > /dev/null 2>&1 || :
+        /sbin/service openstack-nova-${svc} stop >/dev/null 2>&1
+        /sbin/chkconfig --del openstack-nova-${svc}
     done
 fi
 %preun objectstore
 if [ $1 -eq 0 ] ; then
     for svc in objectstore; do
-        /bin/systemctl --no-reload disable openstack-nova-${svc}.service > /dev/null 2>&1 || :
-        /bin/systemctl stop openstack-nova-${svc}.service > /dev/null 2>&1 || :
+        /sbin/service openstack-nova-${svc} stop >/dev/null 2>&1
+        /sbin/chkconfig --del openstack-nova-${svc}
     done
 fi
 %preun conductor
 if [ $1 -eq 0 ] ; then
     for svc in conductor; do
-        /bin/systemctl --no-reload disable openstack-nova-${svc}.service > /dev/null 2>&1 || :
-        /bin/systemctl stop openstack-nova-${svc}.service > /dev/null 2>&1 || :
+        /sbin/service openstack-nova-${svc} stop >/dev/null 2>&1
+        /sbin/chkconfig --del openstack-nova-${svc}
     done
 fi
 %preun console
 if [ $1 -eq 0 ] ; then
     for svc in console consoleauth xvpvncproxy; do
-        /bin/systemctl --no-reload disable openstack-nova-${svc}.service > /dev/null 2>&1 || :
-        /bin/systemctl stop openstack-nova-${svc}.service > /dev/null 2>&1 || :
+        /sbin/service openstack-nova-${svc} stop >/dev/null 2>&1
+        /sbin/chkconfig --del openstack-nova-${svc}
     done
 fi
 %preun cells
 if [ $1 -eq 0 ] ; then
     for svc in cells; do
-        /bin/systemctl --no-reload disable openstack-nova-${svc}.service > /dev/null 2>&1 || :
-        /bin/systemctl stop openstack-nova-${svc}.service > /dev/null 2>&1 || :
+        /sbin/service openstack-nova-${svc} stop >/dev/null 2>&1
+        /sbin/chkconfig --del openstack-nova-${svc}
     done
 fi
 
 %postun compute
-/bin/systemctl daemon-reload >/dev/null 2>&1 || :
 if [ $1 -ge 1 ] ; then
     # Package upgrade, not uninstall
     for svc in compute; do
-        /bin/systemctl try-restart openstack-nova-${svc}.service >/dev/null 2>&1 || :
+        /sbin/service openstack-nova-${svc} condrestart > /dev/null 2>&1 || :
     done
 fi
 %postun network
-/bin/systemctl daemon-reload >/dev/null 2>&1 || :
 if [ $1 -ge 1 ] ; then
     # Package upgrade, not uninstall
     for svc in network; do
-        /bin/systemctl try-restart openstack-nova-${svc}.service >/dev/null 2>&1 || :
+        /sbin/service openstack-nova-${svc} condrestart > /dev/null 2>&1 || :
     done
 fi
 %postun scheduler
-/bin/systemctl daemon-reload >/dev/null 2>&1 || :
 if [ $1 -ge 1 ] ; then
     # Package upgrade, not uninstall
     for svc in scheduler; do
-        /bin/systemctl try-restart openstack-nova-${svc}.service >/dev/null 2>&1 || :
+        /sbin/service openstack-nova-${svc} condrestart > /dev/null 2>&1 || :
     done
 fi
 %postun cert
-/bin/systemctl daemon-reload >/dev/null 2>&1 || :
 if [ $1 -ge 1 ] ; then
     # Package upgrade, not uninstall
     for svc in cert; do
-        /bin/systemctl try-restart openstack-nova-${svc}.service >/dev/null 2>&1 || :
+        /sbin/service openstack-nova-${svc} condrestart > /dev/null 2>&1 || :
     done
 fi
 %postun api
-/bin/systemctl daemon-reload >/dev/null 2>&1 || :
 if [ $1 -ge 1 ] ; then
     # Package upgrade, not uninstall
     for svc in api metadata-api; do
-        /bin/systemctl try-restart openstack-nova-${svc}.service >/dev/null 2>&1 || :
+        /sbin/service openstack-nova-${svc} condrestart > /dev/null 2>&1 || :
     done
 fi
 %postun objectstore
-/bin/systemctl daemon-reload >/dev/null 2>&1 || :
 if [ $1 -ge 1 ] ; then
     # Package upgrade, not uninstall
     for svc in objectstore; do
-        /bin/systemctl try-restart openstack-nova-${svc}.service >/dev/null 2>&1 || :
+        /sbin/service openstack-nova-${svc} condrestart > /dev/null 2>&1 || :
     done
 fi
 %postun conductor
-/bin/systemctl daemon-reload >/dev/null 2>&1 || :
 if [ $1 -ge 1 ] ; then
     # Package upgrade, not uninstall
     for svc in conductor; do
-        /bin/systemctl try-restart openstack-nova-${svc}.service >/dev/null 2>&1 || :
+        /sbin/service openstack-nova-${svc} condrestart > /dev/null 2>&1 || :
     done
 fi
 %postun console
-/bin/systemctl daemon-reload >/dev/null 2>&1 || :
 if [ $1 -ge 1 ] ; then
     # Package upgrade, not uninstall
     for svc in console consoleauth xvpvncproxy; do
-        /bin/systemctl try-restart openstack-nova-${svc}.service >/dev/null 2>&1 || :
+        /sbin/service openstack-nova-${svc} condrestart > /dev/null 2>&1 || :
     done
 fi
 %postun cells
-/bin/systemctl daemon-reload >/dev/null 2>&1 || :
 if [ $1 -ge 1 ] ; then
     # Package upgrade, not uninstall
     for svc in cells; do
-        /bin/systemctl try-restart openstack-nova-${svc}.service >/dev/null 2>&1 || :
+        /sbin/service openstack-nova-${svc} condrestart > /dev/null 2>&1 || :
     done
 fi
 
@@ -691,7 +697,7 @@ fi
 %files common
 %doc LICENSE
 %dir %{_sysconfdir}/nova
-%{_sysconfdir}/nova/release
+%{_sysconfdir}/nova/release 
 %config(noreplace) %attr(-, root, nova) %{_sysconfdir}/nova/nova.conf
 %config(noreplace) %attr(-, root, nova) %{_sysconfdir}/nova/api-paste.ini
 %config(noreplace) %attr(-, root, nova) %{_sysconfdir}/nova/rootwrap.conf
@@ -699,7 +705,6 @@ fi
 %config(noreplace) %{_sysconfdir}/logrotate.d/openstack-nova
 %config(noreplace) %{_sysconfdir}/sudoers.d/nova
 %config(noreplace) %{_sysconfdir}/polkit-1/localauthority/50-local.d/50-nova.pkla
-%config(noreplace) %{_sysconfdir}/polkit-1/rules.d/50-nova.rules
 
 %dir %attr(0755, nova, root) %{_localstatedir}/log/nova
 %dir %attr(0755, nova, root) %{_localstatedir}/run/nova
@@ -710,12 +715,14 @@ fi
 %{_bindir}/nova-manage
 %{_bindir}/nova-rootwrap
 
+%exclude %{_datarootdir}/nova/*.upstart
 %{_datarootdir}/nova
 %{_mandir}/man1/nova*.1.gz
 
 %defattr(-, nova, nova, -)
 %dir %{_sharedstatedir}/nova
 %dir %{_sharedstatedir}/nova/buckets
+%dir %{_sharedstatedir}/nova/images
 %dir %{_sharedstatedir}/nova/instances
 %dir %{_sharedstatedir}/nova/keys
 %dir %{_sharedstatedir}/nova/networks
@@ -725,23 +732,26 @@ fi
 %{_bindir}/nova-compute
 %{_bindir}/nova-baremetal-deploy-helper
 %{_bindir}/nova-baremetal-manage
-%{_unitdir}/openstack-nova-compute.service
+%{_initrddir}/openstack-nova-compute
+%{_datarootdir}/nova/openstack-nova-compute.upstart
 %{_datarootdir}/nova/rootwrap/compute.filters
-%config(noreplace) %{_sysconfdir}/tgt/conf.d/nova.conf
 
 %files network
 %{_bindir}/nova-network
 %{_bindir}/nova-dhcpbridge
-%{_unitdir}/openstack-nova-network.service
+%{_initrddir}/openstack-nova-network
+%{_datarootdir}/nova/openstack-nova-network.upstart
 %{_datarootdir}/nova/rootwrap/network.filters
 
 %files scheduler
 %{_bindir}/nova-scheduler
-%{_unitdir}/openstack-nova-scheduler.service
+%{_initrddir}/openstack-nova-scheduler
+%{_datarootdir}/nova/openstack-nova-scheduler.upstart
 
 %files cert
 %{_bindir}/nova-cert
-%{_unitdir}/openstack-nova-cert.service
+%{_initrddir}/openstack-nova-cert
+%{_datarootdir}/nova/openstack-nova-cert.upstart
 %defattr(-, nova, nova, -)
 %dir %{_sharedstatedir}/nova/CA/
 %dir %{_sharedstatedir}/nova/CA/certs
@@ -761,28 +771,35 @@ fi
 
 %files api
 %{_bindir}/nova-api*
-%{_unitdir}/openstack-nova-*api.service
+%{_initrddir}/openstack-nova-*api
+%{_datarootdir}/nova/openstack-nova-*api.upstart
 %{_datarootdir}/nova/rootwrap/api-metadata.filters
 
 %files conductor
 %{_bindir}/nova-conductor
-%{_unitdir}/openstack-nova-conductor.service
+%{_initrddir}/openstack-nova-conductor
+%{_datarootdir}/nova/openstack-nova-conductor.upstart
 
 %files objectstore
 %{_bindir}/nova-objectstore
-%{_unitdir}/openstack-nova-objectstore.service
+%{_initrddir}/openstack-nova-objectstore
+%{_datarootdir}/nova/openstack-nova-objectstore.upstart
 
 %files console
 %{_bindir}/nova-console*
 %{_bindir}/nova-xvpvncproxy
 %{_bindir}/nova-spicehtml5proxy
-%{_unitdir}/openstack-nova-console*.service
-%{_unitdir}/openstack-nova-xvpvncproxy.service
-%{_unitdir}/openstack-nova-spicehtml5proxy.service
+%{_initrddir}/openstack-nova-console*
+%{_datarootdir}/nova/openstack-nova-console*.upstart
+%{_initrddir}/openstack-nova-xvpvncproxy
+%{_datarootdir}/nova/openstack-nova-xvpvncproxy.upstart
+%{_initrddir}/openstack-nova-spicehtml5proxy*
+%{_datarootdir}/nova/openstack-nova-spicehtml5proxy.upstart
 
 %files cells
 %{_bindir}/nova-cells
-%{_unitdir}/openstack-nova-cells.service
+%{_initrddir}/openstack-nova-cells
+%{_datarootdir}/nova/openstack-nova-cells.upstart
 
 %files -n python-nova
 %defattr(-,root,root,-)
@@ -796,28 +813,19 @@ fi
 %endif
 
 %changelog
-* Tue Feb 26 2013 Nikola Đipanov <ndipanov@redhat.com> - 2013.1-0.7.g3
-- Fix dependency issues caused by the Milestone 3 update
+* Tue Feb 26 2013 Nikola Đipanov <ndipanov@redhat.com> - 2013.1-0.6.g3
+- Add dep to python-pyasn1
 
-* Mon Feb 25 2013 Nikola Đipanov <ndipanov@redhat.com> - 2013.1-0.6.g3
+* Mon Feb 25 2013 Nikola Đipanov <ndipanov@redhat.com> - 2013.1-0.5.g3
 - Update to Grizzly milestone 3
 
-* Thu Feb 14 2013 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 2013.1-0.5.g2
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_19_Mass_Rebuild
-
-* Fri Jan 11 2013 Nikola Đipanov <ndipanov@redhat.com> - 2013.1-0.4.g2
+* Mon Jan 14 2013 Nikola Đipanov <ndipanov@redhat.com> - 2013.1-0.4.g2
 - Update to Grizzly milestone 2
 - Add the version info file
 - Add python-stevedore dependency
-- Add the cells subpackage and service file
+- Add the cells subpackage and init scripts
 
-* Thu Dec 06 2012 Nikola Đipanov <ndipanov@redhat.com> - 2013.1-0.3.g1
-- signing_dir renamed from incorrect signing_dirname in default nova.conf
-
-* Thu Nov 29 2012 Nikola Đipanov <ndipanov@redhat.com> 2013.1-0.2.g1
--Fix a few spec file issues introduced by the Grizzly update
-
-* Wed Nov 28 2012 Nikola Đipanov <ndipanov@redhat.com> 2013.1-0.1.g1
+* Thu Dec 06 2012 Nikola Đipanov <ndipanov@redhat.com> 2013.1-0.3.g1
 - Update to Grizzly milestone 1
 - Remove volume subpackage - removed from Grizzly
 - Add the conductor subpackage - new service added in Grizzly
@@ -825,107 +833,158 @@ fi
 - Don't add the nova user to the group fuse
 - Removes openstack-utils from requirements for nova-common
 
-* Thu Sep 27 2012 Pádraig Brady <pbrady@redhat.com> - 2012.2-1
+* Thu Dec 06 2012 Nikola Đipanov <ndipanov@redhat.com> - 2012.2.1-3
+- signing_dir renamed from incorrect signing_dirname in default nova.conf
+
+* Tue Dec 04 2012 Nikola Đipanov <ndipanov@redhat.com> - 2012.2.1-2
+- Fix rpc_control_exchange regression
+
+* Fri Nov 30 2012 Nikola Đipanov <ndipanov@redhat.com> - 2012.2.1-1
+- Update to folsom stable release 1
+
+* Tue Oct 30 2012 Pádraig Brady <pbrady@redhat.com> - 2012.2-2
+- Add support for python-migrate-0.6
+
+* Thu Oct 12 2012 Pádraig Brady <pbrady@redhat.com> - 2012.2-1
 - Update to folsom final
 
-* Wed Sep 26 2012 Pádraig Brady <pbrady@redhat.com> - 2012.2-0.11.rc1
-- Support newer polkit config format to allow communication with libvirtd
-- Fix to ensure that tgt configuration is honored
+* Fri Oct 12 2012 Nikola Dipanov <ndipanov@redhat.com> - 2012.1.3-1
+- Restore libvirt block storage connections on reboot
+- Fix libvirt volume attachment error logging
+- Ensure instances with deleted floating IPs can be deleted
+- Ensure can contact floating IP after instance snapshot
+- Fix tenant usage time accounting
+- Ensure correct disk definitions are used on volume attach/detach
+- Improve concurrency of long running tasks
+- Fix unmounting of LXC containers in the presence of symlinks
+- Fix external lock corruption in the presence of SELinux
+- Allow snapshotting images that are deleted in glance
+- Ensure the correct fixed IP is deallocated when deleting VMs
 
-* Fri Sep 21 2012 Pádraig Brady <pbrady@redhat.com> - 2012.2-0.8.rc1
-- Update to folsom rc1
+* Fri Aug 10 2012 Pádraig Brady <P@draigBrady.com> - 2012.1.1-15
+- Fix package versions to ensure update dependencies are correct
+- Fix CA cert permissions issue introduced in 2012.1.1-10
 
-* Mon Sep 17 2012 Alan Pevec <apevec@redhat.com> - 2012.2-0.7.f3
-- Remove user config from paste ini files
+* Wed Aug  8 2012 Pádraig Brady <P@draigBrady.com> - 2012.1.1-13
+- Log live migration errors
+- Prohibit host file corruption through file injection (CVE-2012-3447)
 
-* Mon Aug 27 2012 Pádraig Brady <P@draigBrady.com> - 2012.2-0.6.f3
-- Update to folsom milestone 3
+* Mon Aug  6 2012 Pádraig Brady <P@draigBrady.com> - 2012.1.1-12
+- Fix group installation issue introduced in 2012.1.1-10
 
-* Fri Jul 20 2012 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 2012.2-0.4.f1
-- Rebuilt for https://fedoraproject.org/wiki/Fedora_18_Mass_Rebuild
+* Sun Jul 30 2012 Pádraig Brady <P@draigBrady.com> - 2012.1.1-11
+- Update from stable upstream including...
+- Fix metadata file injection with xen
+- Fix affinity filters when hints is None
+- Fix marker behavior for flavors
+- Handle local remote exceptions consistently
+- Fix qcow2 size on libvirt live block migration
+- Fix for API listing of os hosts
+- Avoid lazy loading errors on instance_type
+- Avoid casts in network manager to prevent races
+- Conditionally allow queries for deleted flavours
+- Fix wrong regex in cleanup_file_locks
+- Add net rules to VMs on compute service start
+- Tolerate parsing null connection info in BDM
+- Support EC2 CreateImage API for boot from volume
+- EC2 DescribeImages reports correct rootDeviceType
+- Reject EC2 CreateImage for instance store
+- Fix EC2 CreateImage no_reboot logic
+- Convert remaining network API casts to calls
+- Move where the fixed ip deallocation happens
+- Fix the qpid_heartbeat option so that it's effective
 
-* Wed Jun 08 2012 Pádraig Brady <P@draigBrady.com> - 2012.2-0.3.f1
+* Fri Jul 27 2012 Pádraig Brady <P@draigBrady.com> - 2012.1.1-10
+- Split out into more sub packages
+
+* Fri Jul 20 2012 Pádraig Brady <P@draigBrady.com> - 2012.1.1-4
+- Enable auto cleanup of old cached instance images
+- Fix ram_allocation_ratio based over subscription
+- Expose over quota exceptions via native API
+- Return 413 status on over quota in the native API
+- Fix call to network_get_all_by_uuids
+- Fix libvirt get_memory_mb_total with xen
+- Use compute_api.get_all in affinity filters (CVE-2012-3371)
+- Use default qemu img cluster size in libvirt connect
+- Ensure libguestfs has completed before proceeding
+
+* Thu Jul  5 2012 Pádraig Brady <P@draigBrady.com> - 2012.1.1-3
+- Distinguish volume overlimit exceptions
+- Prohibit host file corruption through file injection (CVE-2012-3360, CVE-2012-3361)
+
+* Wed Jun 27 2012 Pádraig Brady <P@draigBrady.com> - 2012.1.1-2
+- Update to latest essex stable branch
+- Support injecting new .ssh/authorized_keys files to SELinux enabled guests
+
+* Fri Jun 22 2012 Pádraig Brady <P@draigBrady.com> - 2012.1.1-1
+- Update to essex stable release 2012.1.1
+- Improve performance and stability of file injection
+- add upstart jobs, alternative to sysv initscripts
+
+* Fri Jun 15 2012 Pádraig Brady <P@draigBrady.com> - 2012.1-12
+- update performance and stability fixes from essex stable
+
+* Mon Jun 11 2012 Pádraig Brady <P@draigBrady.com> - 2012.1-11
+- fix an exception caused by the fix for CVE-2012-2654
+- fix the encoding of the dns_domains table (requires a db sync)
+- fix a crash due to a nova services startup race (#825051)
+
+* Wed Jun 08 2012 Pádraig Brady <P@draigBrady.com> - 2012.1-10
 - Enable libguestfs image inspection
 
-* Wed Jun 06 2012 Pádraig Brady <P@draigBrady.com> - 2012.2-0.2.f1
-- Fix up protocol case handling for security groups (CVE-2012-2654)
+* Wed Jun 06 2012 Pádraig Brady <P@draigBrady.com> - 2012.1-9
+- Sync up with Essex stable branch, including...
+- Fix for protocol case handling (#829441, CVE-2012-2654)
 
-* Tue May 29 2012 Pádraig Brady <P@draigBrady.com> - 2012.2-0.1.f1
-- Update to folsom milestone 1
-
-* Wed May 16 2012 Alan Pevec <apevec@redhat.com> - 2012.1-6
+* Wed May 16 2012 Alan Pevec <apevec@redhat.com> - 2012.1-8
 - Remove m2crypto and other dependencies no loner needed by Essex
 
-* Wed May 16 2012 Pádraig Brady <P@draigBrady.com> - 2012.1-5
+* Wed May 16 2012 Pádraig Brady <P@draigBrady.com> - 2012.1-7
+- Depend on tunctl which can be used when `ip tuntap` is unavailable
 - Sync up with Essex stable branch
 - Handle updated qemu-img info output
-- Remove redundant and outdated openstack-nova-db-setup
+- Replace openstack-nova-db-setup with openstack-db
 
-* Wed May 09 2012 Alan Pevec <apevec@redhat.com> - 2012.1-4
+* Wed May 09 2012 Alan Pevec <apevec@redhat.com> - 2012.1-6
 - Remove the socat dependency no longer needed by Essex
 
-* Wed Apr 27 2012 Pádraig Brady <P@draigBrady.com> - 2012.1-3
-- Reference new Essex services at installation
+* Tue May 01 2012 Pádraig Brady <P@draigBrady.com> - 2012.1-5
+- Start the services later in the boot sequence
 
-* Wed Apr 18 2012 Pádraig Brady <P@draigBrady.com> - 2012.1-2
+* Wed Apr 27 2012 Pádraig Brady <P@draigBrady.com> - 2012.1-4
+- Fix install issues with new Essex init scripts
+
+* Wed Apr 25 2012 Pádraig Brady <P@draigBrady.com> - 2012.1-3
+- Use parallel installed versions of python-routes and python-paste-deploy
+
+* Thu Apr 19 2012 Pádraig Brady <P@draigBrady.com> - 2012.1-2
 - Sync up with Essex stable branch
 - Support more flexible guest image file injection
 - Enforce quota on security group rules (#814275, CVE-2012-2101)
 - Provide startup scripts for the Essex VNC services
 - Provide a startup script for the separated metadata api service
 
-* Sun Apr  8 2012 Pádraig Brady <P@draigBrady.com> - 2012.1-1
+* Fri Apr 13 2012 Pádraig Brady <P@draigBrady.com> - 2012.1-1
 - Update to Essex release
 
-* Thu Mar 29 2012 Russell Bryant <rbryant@redhat.com> 2012.1-0.10.rc1
-- Remove the outdated nova-debug tool
-- CVE-2012-1585 openstack-nova: Long server names grow nova-api log files significantly
-
-* Mon Mar 26 2012 Mark McLoughlin <markmc@redhat.com> - 2012.1-0.9.rc1
-- Avoid killing dnsmasq on network service shutdown (#805947)
-
-* Tue Mar 20 2012 Pádraig Brady <P@draigBrady.com> - 2012.1-0.8.rc1
+* Mon Apr 01 2012 Pádraig Brady <P@draigBrady.com> - 2012.1-0.1.rc1
 - Update to Essex release candidate 1
 
-* Fri Mar 16 2012 Pádraig Brady <P@draigBrady.com> - 2012.1-0.8.e4
-- Include an upstream fix for errors logged when syncing power states
-- Support non blocking libvirt operations
-- Fix an exception when querying a server through the API (#803905)
-- Suppress deprecation warnings with db sync at install (#801302)
-- Avoid and cater for missing libvirt instance images (#801791)
+* Thu Mar 29 2012 Pádraig Brady <P@draigBrady.com> - 2011.3.1-8
+- Remove the dependency on the not yet available dnsmasq-utils
 
-* Fri Mar  6 2012 Alan Pevec <apevec@redhat.com> - 2012.1-0.7.e4
-- Fixup permissions on nova config files
+* Thu Mar 29 2012 Russell Bryant <rbryant@redhat.com> - 2011.3.1-7
+- CVE-2012-1585 - Long server names grow nova-api log files significantly
+- Resolves: rhbz#808148
 
-* Fri Mar  6 2012 Pádraig Brady <P@draigBrady.com> - 2012.1-0.6.e4
-- Depend on bridge-utils
-- Support fully transparent handling of the new ini config file
+* Mon Mar  6 2012 Pádraig Brady <P@draigBrady.com> - 2011.3.1-5
+- Require bridge-utils
 
-* Fri Mar  2 2012 Pádraig Brady <P@draigBrady.com> - 2012.1-0.5.e4
-- Update to Essex milestone 4.
-- explicitly select the libvirt firewall driver in default nova.conf.
-- Add dependency on python-iso8601.
-- Enable --force_dhcp_release.
-- Switch to the new ini format config file.
-
-* Mon Feb 13 2012 Pádraig Brady <P@draigBrady.com> - 2012.1-0.4.e3
+* Mon Feb 13 2012 Pádraig Brady <P@draigBrady.com> - 2011.3.1-4
 - Support --force_dhcp_release (#788485)
 
-* Thu Feb  2 2012 Pádraig Brady <P@draigBrady.com> - 2012.1-0.3.e3
-- Suppress a warning from `nova-manage image convert`
-- Add the openstack-nova-cert service which now handles the CA folder
-- Change the default message broker from rabbitmq to qpid
-- Enable the new rootwrap helper, to minimize sudo config
-
-* Fri Jan 27 2012 Pádraig Brady <P@draigBrady.com> - 2012.1-0.2.e3
+* Fri Jan 27 2012 Pádraig Brady <P@draigBrady.com> - 2011.3.1-3
 - Suppress erroneous output to stdout on package install (#785115)
-- Specify a connection_type in nova.conf, needed by essex-3
-- Depend on python-carrot, currently needed by essex-3
-- Remove the rabbitmq-server dependency as it's now optional
-- Have python-nova depend on the messaging libs, not openstack-nova
-
-* Thu Jan 26 2012 Pádraig Brady <P@draigBrady.com> - 2012.1-0.1.e3
-- Update to essex milestone 3
 
 * Mon Jan 23 2012 Pádraig Brady <P@draigBrady.com> - 2011.3.1-2
 - Fix a REST API v1.0 bug causing a regression with deltacloud
@@ -977,6 +1036,7 @@ fi
 - Add --yes, --rootpw, and --novapw options to openstack-nova-db-setup.
 
 * Wed Nov 30 2011 Pádraig Brady <P@draigBrady.com> - 2011.3-10
+- Use updated parallel install versions of epel packages
 - Add libguestfs support
 
 * Tue Nov 29 2011 Pádraig Brady <P@draigBrady.com> - 2011.3-9
@@ -986,14 +1046,18 @@ fi
 * Tue Nov 29 2011 Russell Bryant <rbryant@redhat.com> - 2011.3-8
 - Change default database to mysql. (#735012)
 
-* Mon Nov 14 2011 Mark McLoughlin <markmc@redhat.com> - 2011.3-7
+* Mon Nov 14 2011 Mark McLoughlin <markmc@redhat.com> - 2011.3-8
 - Add ~20 significant fixes from upstream stable branch
 
-* Wed Oct 26 2011 Mark McLoughlin <markmc@redhat.com> - 2011.3-6
+* Wed Oct 26 2011 Mark McLoughlin <markmc@redhat.com> - 2011.3-7
 - Fix password leak in EC2 API (#749385, CVE 2011-4076)
 
 * Mon Oct 24 2011 Mark McLoughlin <markmc@redhat.com> - 2011.3-5
 - Fix block migration (#741690)
+
+* Fri Oct 21 2011 David Busby <oneiroi@fedoraproject.org> 2011.3-5
+- Changed requirement from python-sphinx, to python-sphinx10
+- Switch back to SysV init for el6
 
 * Mon Oct 17 2011 Bob Kukura <rkukura@redhat.com> - 2011.3-4
 - Add dependency on python-amqplib (#746685)
