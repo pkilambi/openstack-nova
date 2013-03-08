@@ -157,8 +157,7 @@ Requires:         vconfig
 Requires:         radvd
 Requires:         bridge-utils
 Requires:         dnsmasq
-#TODO: Enable when available in RHEL 6.3
-#Requires:         dnsmasq-utils
+Requires:         dnsmasq-utils
 # tunctl is needed where `ip tuntap` is not available
 Requires:         tunctl
 
@@ -813,6 +812,9 @@ fi
 %endif
 
 %changelog
+* Fri Mar 8 2013 Dan Prince <dprince@redhat.com> - 2013.1-0.6.g3
+- Add dnsmasq-utils to Nova Network requires.
+
 * Tue Feb 26 2013 Nikola Đipanov <ndipanov@redhat.com> - 2013.1-0.6.g3
 - Add dep to python-pyasn1
 
