@@ -382,7 +382,7 @@ This package contains documentation files for nova.
 %endif
 
 %prep
-%setup -q -n nova-%{version}.g3
+%setup -q -n nova-%{version}
 
 %patch0001 -p1
 
